@@ -1,0 +1,664 @@
+{
+  "name": "PennHack25",
+  "nodes": [
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        340,
+        20
+      ],
+      "id": "e9e1e7d6-c377-4bc3-813d-bfb6c3ca2494",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "QUw2BMNoSR5Qfefb",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const fromObj = item.json.from?.value?.[0];\n  const rawText = item.json.text || \"\";\n  const receivedTime = item.json.date || \"(Unknown Time)\";\n\n  // 文本清洗函数\n  const cleanText = rawText\n    .replace(/\\[image:.*?\\]\\n?/gi, '')\n    .replace(/https?:\\/\\/[^\\s]+/g, '')\n    .replace(/(<\\\\n|\\| *<|\\|\\\\n|<|>|\\(\\s*\\))/g, '')\n    .replace(/(English|Русский|Deutsch|日本語|español|français|中文|português|italiano|polski)[^\\n]*\\n*/gi, '')\n    .replace(/©.*?(Google|Tailscale).*?\\n*/gi, '')\n    .replace(/^[ \\t]*\\n/gm, '')\n    .replace(/\\n{2,}/g, '\\n\\n')\n    .trim();\n\n  const filteredParagraphs = cleanText\n    .split('\\n')\n    .map(line => line.trim())\n    .filter(line =>\n      line.length > 10 &&\n      /[a-zA-Z\\u4e00-\\u9fa5]/.test(line)\n    );\n\n  return {\n    json: {\n      subject: item.json.subject || \"(No Subject)\",\n      from: fromObj ? `${fromObj.name || ''} <${fromObj.address}>` : \"(Unknown Sender)\",\n      receivedTime,  // 新增字段\n      textBody: filteredParagraphs.join('\\n\\n') || \"(No useful text content)\",\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -820,
+        -380
+      ],
+      "id": "6ec7db63-e3ce-42c0-8ec1-40eccc59a949",
+      "name": "Code - Extract"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9f61ab9-8436-41b1-aed4-2db9ef4dae14",
+              "leftValue": "={{ $items.length > 0 }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        40,
+        0
+      ],
+      "id": "f870d16c-ffef-4145-aeb6-f2c653eeb5f6",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1240,
+        -580
+      ],
+      "id": "ca22d61a-7114-4c0a-b72b-40ab5a02d2e1",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.subject }} + from + {{ $json.from }}: {{ $json.textBody }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a helpful assistant.\n\nPlease summarize the following email in less than 100 characters.\n\nRespond with only the summary. Do not include any formatting, subject, or sender."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        280,
+        -560
+      ],
+      "id": "8840998f-a1a7-4a43-a4b2-cea6b89fab1b",
+      "name": "AI Agent - Add Notion"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "1da1fa48-9ae8-80fd-a50b-c92471236602",
+          "mode": "list",
+          "cachedResultName": "Penn Hack 25",
+          "cachedResultUrl": "https://www.notion.so/1da1fa489ae880fda50bc92471236602"
+        },
+        "title": "={{ $json.subject }}",
+        "simple": "=",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Sender|rich_text",
+              "textContent": "={{ $json.from }}"
+            },
+            {
+              "key": "Summary|rich_text",
+              "textContent": "={{ $json.textBody }}"
+            },
+            {
+              "key": "Time|rich_text",
+              "textContent": "={{ $json.receivedTime }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        -420
+      ],
+      "id": "c4433b4b-5762-4047-bb96-74a30fe40911",
+      "name": "Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "1SA23vvFCqnEQw2q",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        620,
+        -420
+      ],
+      "id": "72a270df-854d-471b-90cd-1626242f564a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sender: {{ $json.from }}\nSubject: {{ $json.subject }}\nMailContent: {{ $json.textBody }}\n\nPlease analyze the above email and determine whether it describes a calendar-worthy event, following the system instructions. Respond with a raw JSON object only. Do NOT wrap it in markdown or quotes.",
+        "options": {
+          "systemMessage": "You are a helpful assistant that extracts calendar-worthy events from email summaries.\n\nYou must detect the following types of events:\n1. Any seminars, lectures, or talks → schedule on the mentioned date/time.\n2. Any scheduled meetings → extract the time and add it.\n3. Notifications about deliveries → set a reminder *today before 8 PM* to pick up the delivery.\n4. Any events with food → schedule on the mentioned date/time.\n\nOutput a JSON object with:\n- `shouldAddToCalendar`: true or false\n- If true, a `calendarEntry` object with:\n  - `title`: short description\n  - `datetime`: ISO-8601 formatted datetime (e.g. \"2025-04-19T18:00:00\") or `null` if no specific time is found\n  - `notes`: original message or context\n\nBe concise and robust to informal or incomplete messages."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        620,
+        -200
+      ],
+      "id": "db317974-1463-4514-816c-5bacc7bfa252",
+      "name": "AI Agent - Add Calendar"
+    },
+    {
+      "parameters": {
+        "jsCode": "// items 是 N8N 中当前 node 的输入\nconst transformedItems = items.map(item => {\n  try {\n    const rawOutput = item.json.output;\n    const parsedOutput = JSON.parse(rawOutput); // 去除转义字符并转换成对象\n\n    return {\n      json: parsedOutput // 变成真正的 JSON 对象输出\n    };\n  } catch (err) {\n    return {\n      json: {\n        shouldAddToCalendar: false,\n        error: 'Failed to parse output',\n        raw: item.json.output\n      }\n    };\n  }\n});\n\nreturn transformedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        -200
+      ],
+      "id": "33a60aab-694f-4faf-aaa0-a8b97de0519f",
+      "name": "Code - Format"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "84de7051-f789-4283-a145-171c11de817c",
+              "leftValue": "={{ $json.shouldAddToCalendar }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -200
+      ],
+      "id": "f11e8c25-87e7-440a-a524-8e5d55f4c47f",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "jonlai.utils@gmail.com",
+          "mode": "list",
+          "cachedResultName": "jonlai.utils@gmail.com"
+        },
+        "start": "={{ new Date($json.calendarEntry.datetime).toISOString() }}",
+        "end": "={{ new Date(new Date($json.calendarEntry.datetime).getTime() + 3600000).toISOString() }}",
+        "additionalFields": {
+          "summary": "={{ $json.calendarEntry.title }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1420,
+        -300
+      ],
+      "id": "02329e8d-101b-4cfc-a3c3-ab889098a9ec",
+      "name": "Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Uzb5uJlyDYdGUTuO",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        200
+      ],
+      "id": "abd0931f-e10f-45f3-8484-cf0a19e86a68",
+      "name": "Gmail - Mark Read",
+      "webhookId": "97e2e2c9-5ca3-468a-bff0-7ab15485a8c1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "syYooQbTZhDG5qcI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "get-unread-emails",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1260,
+        -380
+      ],
+      "id": "1acf288d-6744-46a5-9f74-608ecef24503",
+      "name": "Webhook",
+      "webhookId": "5998d2d6-11aa-43f3-9960-b22f624671df"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -580,
+        -660
+      ],
+      "id": "7927ad24-ca51-4aab-befe-943e305a12db",
+      "name": "Respond to Webhook - Unread"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const fromObj = item.json.from?.value?.[0];\n  const rawText = item.json.text || \"\";\n  const receivedTime = item.json.date || \"(Unknown Time)\";\n\n  // 文本清洗函数\n  const cleanText = rawText\n    .replace(/\\[image:.*?\\]\\n?/gi, '')\n    .replace(/https?:\\/\\/[^\\s]+/g, '')\n    .replace(/(<\\\\n|\\| *<|\\|\\\\n|<|>|\\(\\s*\\))/g, '')\n    .replace(/(English|Русский|Deutsch|日本語|español|français|中文|português|italiano|polski)[^\\n]*\\n*/gi, '')\n    .replace(/©.*?(Google|Tailscale).*?\\n*/gi, '')\n    .replace(/^[ \\t]*\\n/gm, '')\n    .replace(/\\n{2,}/g, '\\n\\n')\n    .trim();\n\n  const filteredParagraphs = cleanText\n    .split('\\n')\n    .map(line => line.trim())\n    .filter(line =>\n      line.length > 10 &&\n      /[a-zA-Z\\u4e00-\\u9fa5]/.test(line)\n    );\n\n  return {\n    json: {\n      subject: item.json.subject || \"(No Subject)\",\n      from: fromObj ? `${fromObj.name || ''} <${fromObj.address}>` : \"(Unknown Sender)\",\n      receivedTime,  // 新增字段\n      textBody: filteredParagraphs.join('\\n\\n') || \"(No useful text content)\",\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "9aef291f-0252-47a0-ae3e-2cef2126653a",
+      "name": "Code - Extract1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "UNREAD"
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1020,
+        -380
+      ],
+      "id": "22fc43a5-0514-4428-9e7d-c5316ecf506c",
+      "name": "Gmail - Get Unread for Shoe",
+      "webhookId": "f5b01862-2e15-4bc3-9038-fc6c2561284a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "syYooQbTZhDG5qcI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "UNREAD"
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "1facc12c-ebce-437b-af77-df1fb952bf67",
+      "name": "Gmail - Get Unread",
+      "webhookId": "f5b01862-2e15-4bc3-9038-fc6c2561284a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "syYooQbTZhDG5qcI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "summarize-unread",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -820,
+        0
+      ],
+      "id": "30c7c75c-c5f0-4016-a247-0fabab89d694",
+      "name": "Webhook1",
+      "webhookId": "58646821-33e2-4cce-86aa-e17575d95c3c"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here are the unread emails:\n\n{{ $json.mergedEmails }}",
+        "options": {
+          "systemMessage": "You are a helpful email assistant. Summarize the following unread emails in a concise and organized manner. Group similar topics together if possible. Do not include signatures, unsubscribe links, or excessive formatting."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        160,
+        300
+      ],
+      "id": "20b6ac4b-fccc-48e7-8bc5-b6cfc76cb2f7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allEmails = items.map(item => {\n  return `Sender: ${item.json.from}\\nSubject: ${item.json.subject}\\nMailContent:\\n${item.json.textBody}`;\n}).join(\"\\n\\n---\\n\\n\");\n\nreturn [\n  {\n    json: {\n      mergedEmails: allEmails\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        300
+      ],
+      "id": "2db2b18b-f123-4678-8492-b473e335ed13",
+      "name": "Code - Combine"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        300
+      ],
+      "id": "ecaf3951-753a-4cd2-a46b-affbab3af285",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Add Notion",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Add Calendar",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Extract": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook - Unread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Add Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "AI Agent - Add Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Get Unread for Shoe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Add Notion": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Add Calendar": {
+      "main": [
+        [
+          {
+            "node": "Code - Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Get Unread for Shoe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Extract1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code - Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Get Unread for Shoe": {
+      "main": [
+        [
+          {
+            "node": "Code - Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Get Unread": {
+      "main": [
+        [
+          {
+            "node": "Code - Extract1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail - Mark Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Get Unread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Combine": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0ec4b68a-d4ca-4e38-af4a-74be3ada647d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6ef8f8b408672a6aa025aeba374634c4a94c9757d1441cdc337b84010a985803"
+  },
+  "id": "un8DhtV66psJEzGq",
+  "tags": []
+}
